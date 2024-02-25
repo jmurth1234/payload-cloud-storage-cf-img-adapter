@@ -60,6 +60,10 @@ To run the development server, run `yarn dev`. Make sure to put an `.env` file i
 
 You can also use the `.env.example` file as a template.
 
+## Roadmap
+
+- [ ] Use Cloudflare variants for images
+
 ## License
 
 MIT
