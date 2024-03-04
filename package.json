@@ -1,11 +1,14 @@
 {
   "name": "payload-cloud-storage-cf-img-adapter",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "homepage:": "https://payloadcms.com",
   "repository": "git@github.com:rymate1234/payload-cloud-storage-cf-img-adapter.git",
   "description": "Adapter for @payloadcms/plugin-cloud-storage to upload images to Cloudflare",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "keywords": [
     "payload",
     "cms",
