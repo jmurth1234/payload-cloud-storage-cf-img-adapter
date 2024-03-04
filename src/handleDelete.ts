@@ -19,8 +19,14 @@ export const getHandleDelete = ({
       }
     )
 
-    if (response.status !== 200) {
-      throw new Error('Failed to delete image')
+    const res = await response.json()
+
+    if (response.status !== 200 || !res.success) {
+      if (res.errors) {
+        throw new Error(`Failed to upload image: ${res.errors[0].message}`)
+      }
+
+      throw new Error('Failed to upload image')
     }
   }
 }
