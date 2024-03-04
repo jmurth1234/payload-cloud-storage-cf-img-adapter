@@ -23,10 +23,15 @@ export const getHandleDelete = ({
 
     if (response.status !== 200 || !res.success) {
       if (res.errors) {
-        throw new Error(`Failed to upload image: ${res.errors[0].message}`)
+        // don't throw if the image doesn't exist
+        if (res.errors[0].message.includes('not found')) {
+          return
+        }
+
+        throw new Error(`Failed to delete image: ${res.errors[0].message}`)
       }
 
-      throw new Error('Failed to upload image')
+      throw new Error('Failed to delete image')
     }
   }
 }
