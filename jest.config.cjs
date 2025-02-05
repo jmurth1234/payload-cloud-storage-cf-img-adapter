@@ -9,4 +9,6 @@ module.exports = {
       '<rootDir>/src/mocks/fileStub.js',
     '\\.(css|scss)$': '<rootDir>/src/mocks/fileStub.js',
   },
+  // only run tests in dist
+  testMatch: ['<rootDir>/dist/**/*.test.js'],
 }

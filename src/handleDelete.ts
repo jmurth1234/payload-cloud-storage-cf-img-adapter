@@ -1,6 +1,6 @@
-import type { HandleDelete } from '@payloadcms/plugin-cloud-storage/dist/types'
-import { Args } from '.'
-import { getFilename } from './generateURL'
+import type { HandleDelete } from '@payloadcms/plugin-cloud-storage/types'
+import { Args } from './index.js'
+import { getFilename } from './generateURL.js'
 
 export const getHandleDelete = ({
   apiKey,

@@ -1,13 +1,17 @@
-import {
+import type {
   Adapter,
+  PluginOptions as CloudStoragePluginOptions,
+  CollectionOptions,
   GeneratedAdapter,
-} from '@payloadcms/plugin-cloud-storage/dist/types'
+} from '@payloadcms/plugin-cloud-storage/types'
 
-import { getGenerateURL } from './generateURL'
-import { getHandleDelete } from './handleDelete'
-import { getHandleUpload } from './handleUpload'
-import { getHandler } from './staticHandler'
-import { extendWebpackConfig } from './webpack'
+import type { Config, Plugin, UploadCollectionSlug } from 'payload'
+
+import { getGenerateURL } from './generateURL.js'
+import { getHandleDelete } from './handleDelete.js'
+import { getHandleUpload } from './handleUpload.js'
+import { getHandler } from './staticHandler.js'
+import { cloudStoragePlugin } from '@payloadcms/plugin-cloud-storage'
 
 export type Args = {
   /**
@@ -31,7 +35,71 @@ export type Args = {
    * upload and delete images.
    */
   accountId: string
+
+  /**
+   * Whether the Cloudflare storage adapter is enabled.
+   */
+  enabled?: boolean
+
+  /**
+   * Collection options to apply the Cloudflare adapter to.
+   */
+  collections?: Partial<Record<UploadCollectionSlug, Omit<CollectionOptions, 'adapter'> | true>>
 }
+
+type CloudStoragePlugin = (storageArgs: Args) => Plugin
+
+
+export const cloudflareStorage: CloudStoragePlugin =
+  (args: Args) =>
+  (incomingConfig: Config): Config => {
+    if (args.enabled === false) {
+      return incomingConfig
+    }
+
+    if (!args.collections) {
+      throw new Error('Collections are required for the Cloudflare storage adapter.')
+    }
+
+    const adapter = cloudflareAdapter(args)
+
+    // Add adapter to each collection option object
+    const collectionsWithAdapter: CloudStoragePluginOptions['collections'] = Object.entries(
+      args.collections,
+    ).reduce(
+      (acc, [slug, collOptions]) => ({
+        ...acc,
+        [slug]: {
+          ...(collOptions === true ? {} : collOptions),
+          adapter,
+        },
+      }),
+      {} as Record<string, CollectionOptions>,
+    )
+
+    // Set disableLocalStorage: true for collections specified in the plugin options
+    const config = {
+      ...incomingConfig,
+      collections: (incomingConfig.collections || []).map((collection) => {
+        if (!collectionsWithAdapter[collection.slug]) {
+          return collection
+        }
+
+        return {
+          ...collection,
+          upload: {
+            ...(typeof collection.upload === 'object' ? collection.upload : {}),
+            disableLocalStorage: true,
+          },
+        }
+      }),
+    }
+
+    return cloudStoragePlugin({
+      collections: collectionsWithAdapter as Partial<Record<UploadCollectionSlug, CollectionOptions>>,
+    })(config)
+  }
+
 
 export const cloudflareAdapter =
   ({
@@ -42,6 +110,7 @@ export const cloudflareAdapter =
   }: Args): Adapter =>
   ({ collection, prefix }): GeneratedAdapter => {
     return {
+      name: 'cloudflare',
       generateURL: getGenerateURL({ apiKey, accountHash, baseUrl, accountId }),
       handleDelete: getHandleDelete({ apiKey, accountHash, accountId }),
       handleUpload: getHandleUpload({
@@ -51,6 +120,5 @@ export const cloudflareAdapter =
         accountId
       }),
       staticHandler: getHandler({ apiKey, accountHash, collection, baseUrl, accountId }),
-      webpack: extendWebpackConfig,
     }
   }

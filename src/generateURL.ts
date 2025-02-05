@@ -1,7 +1,7 @@
 import path from 'path'
 
-import type { GenerateURL } from '@payloadcms/plugin-cloud-storage/dist/types'
-import type { Args } from '.'
+import type { GenerateURL } from '@payloadcms/plugin-cloud-storage/types'
+import type { Args } from './index.js'
 
 export const getGenerateURL =
   ({ accountHash, baseUrl }: Args): GenerateURL =>

@@ -1,5 +1,5 @@
 import FormData from 'form-data'
-import { getHandleUpload } from '../handleUpload'
+import { getHandleUpload } from '../handleUpload.js'
 import nock from 'nock'
 
 describe('handleUpload', () => {
@@ -25,6 +25,7 @@ describe('handleUpload', () => {
         data: {},
         // @ts-ignore - We don't currently use this anyway
         collection: {},
+        // @ts-ignore - We don't currently use this anyway
         req: {},
       })
     } catch (e) {
@@ -56,6 +57,7 @@ describe('handleUpload', () => {
         data: {},
         // @ts-ignore - We don't currently use this anyway
         collection: {},
+        // @ts-ignore - We don't currently use this anyway
         req: {},
       })
     } catch (e) {

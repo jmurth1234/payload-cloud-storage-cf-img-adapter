@@ -4,9 +4,9 @@ import fs from 'fs'
 import FormData from 'form-data'
 import fetch from 'node-fetch'
 
-import type { HandleUpload } from '@payloadcms/plugin-cloud-storage/dist/types'
-import { Args } from '.'
-import { getFilename } from './generateURL'
+import type { HandleUpload } from '@payloadcms/plugin-cloud-storage/types'
+import { Args } from './index.js'
+import { getFilename } from './generateURL.js'
 
 interface UploadArgs extends Args {
   prefix?: string
