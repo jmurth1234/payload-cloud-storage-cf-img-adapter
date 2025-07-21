@@ -12,6 +12,18 @@ interface UploadArgs extends Args {
   prefix?: string
 }
 
+interface CloudflareUploadResponse {
+  success: boolean
+  errors?: Array<{ message: string }>
+  result?: {
+    id: string
+    filename: string
+    uploaded: string
+    requireSignedURLs: boolean
+    variants: string[]
+  }
+}
+
 export const getHandleUpload = ({
   apiKey,
   accountId,
@@ -44,7 +56,7 @@ export const getHandleUpload = ({
       }
     )
 
-    const res = await response.json()
+    const res = await response.json() as CloudflareUploadResponse
 
     if (response.status !== 200 || !res.success) {
       if (res.errors) {
