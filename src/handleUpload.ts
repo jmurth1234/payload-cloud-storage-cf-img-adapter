@@ -6,10 +6,22 @@ import fetch from 'node-fetch'
 
 import type { HandleUpload } from '@payloadcms/plugin-cloud-storage/types'
 import { Args } from './index.js'
-import { getFilename } from './generateURL.js'
+import { getFilename, addTimestampToFilename } from './generateURL.js'
 
 interface UploadArgs extends Args {
   prefix?: string
+}
+
+interface CloudflareUploadResponse {
+  success: boolean
+  errors?: Array<{ message: string }>
+  result?: {
+    id: string
+    filename: string
+    uploaded: string
+    requireSignedURLs: boolean
+    variants: string[]
+  }
 }
 
 export const getHandleUpload = ({
@@ -18,7 +30,10 @@ export const getHandleUpload = ({
   prefix = '',
 }: UploadArgs): HandleUpload => {
   return async ({ data, file }) => {
-    const fileKey = getFilename({ filename: file.filename, prefix })
+    // Add timestamp to filename before extension
+    const uniqueFilename = addTimestampToFilename(file.filename)
+    
+    const fileKey = getFilename({ filename: uniqueFilename, prefix })
 
     const fileBufferOrStream: Buffer | stream.Readable = file.tempFilePath
       ? fs.createReadStream(file.tempFilePath)
@@ -41,7 +56,7 @@ export const getHandleUpload = ({
       }
     )
 
-    const res = await response.json()
+    const res = await response.json() as CloudflareUploadResponse
 
     if (response.status !== 200 || !res.success) {
       if (res.errors) {
@@ -51,6 +66,7 @@ export const getHandleUpload = ({
       throw new Error('Failed to upload image')
     }
 
-    return data
+    // Update the filename in data to match the uploaded filename
+    data.filename = uniqueFilename
   }
 }
