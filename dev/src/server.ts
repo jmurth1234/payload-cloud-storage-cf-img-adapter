@@ -24,6 +24,7 @@ export const start = async (args?: Partial<InitOptions>) => {
   // Add your own express routes here
 
   app.listen(3000)
+  console.log('Server is running on port 3000')
 }
 
 start()

@@ -31,6 +31,8 @@ export type Args = {
    * upload and delete images.
    */
   accountId: string
+
+  // Adapter always throws on failure; error display handled by strict plugin
 }
 
 export const cloudflareAdapter =
@@ -41,16 +43,20 @@ export const cloudflareAdapter =
     baseUrl = 'https://imagedelivery.net',
   }: Args): Adapter =>
   ({ collection, prefix }): GeneratedAdapter => {
-    return {
+    const adapter: GeneratedAdapter = {
       generateURL: getGenerateURL({ apiKey, accountHash, baseUrl, accountId }),
       handleDelete: getHandleDelete({ apiKey, accountHash, accountId }),
       handleUpload: getHandleUpload({
         prefix,
         apiKey,
         accountHash,
-        accountId
+        accountId,
       }),
       staticHandler: getHandler({ apiKey, accountHash, collection, baseUrl, accountId }),
       webpack: extendWebpackConfig,
     }
+
+    return adapter
   }
+
+export { cloudStorageStrict } from './strictPlugin'

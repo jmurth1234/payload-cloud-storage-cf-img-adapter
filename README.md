@@ -35,6 +35,38 @@ const config = {
     }),
   ],
 }
+### Strict error surfacing (optional)
+
+By default, the upstream plugin logs adapter upload errors and proceeds. If you want failed uploads to return errors to clients and also persist the error message for later viewing:
+
+- Use the strict wrapper to surface errors (request fails)
+- It will also inject a read-only `uploadError` field (or your configured `errorField`) into the collection if it does not exist, so recorded errors can be displayed when using `onError: 'record'`
+
+```ts
+import { cloudStorageStrict, cloudflareAdapter } from 'payload-cloud-storage-cf-img-adapter'
+
+export default buildConfig({
+  plugins: [
+    cloudStorageStrict({
+      errorField: 'uploadError', // optional override
+      collections: {
+        media: {
+          adapter: cloudflareAdapter({
+            apiKey: process.env.CLOUDFLARE_API_KEY as string,
+            accountHash: process.env.CLOUDFLARE_ACCOUNT_HASH as string,
+            accountId: process.env.CLOUDFLARE_ACCOUNT_ID as string,
+            onError: 'record', // or 'throw'
+            errorField: 'uploadError',
+          }),
+        },
+      },
+    }),
+  ],
+})
+```
+
+The strict wrapper mirrors the plugin API but does not swallow adapter errors during `beforeChange`, ensuring failed uploads prevent document creation and return an error to clients.
+
 
 ```
 

@@ -8,7 +8,7 @@ import { slateEditor } from '@payloadcms/richtext-slate'
 import { cloudStorage } from '@payloadcms/plugin-cloud-storage'
 
 // @ts-ignore - this is a dev dependency
-import { cloudflareAdapter } from '../../src/index'
+import { cloudflareAdapter, cloudStorageStrict } from '../../src/index'
 
 export default buildConfig({
   admin: {
@@ -39,7 +39,9 @@ export default buildConfig({
     schemaOutputFile: path.resolve(__dirname, 'generated-schema.graphql'),
   },
   plugins: [
-    cloudStorage({
+    // @ts-ignore - this is a dev dependency
+    cloudStorageStrict({
+      errorField: 'uploadError',
       enabled: !!process.env.CLOUDFLARE_API_KEY,
       collections: {
         [Examples.slug]: {
