@@ -5,10 +5,11 @@ import FormData from 'form-data'
 import fetch from 'node-fetch'
 
 import type { HandleUpload } from '@payloadcms/plugin-cloud-storage/types'
-import { Args } from './index.js'
+import type { CloudflareAdapterArgs } from './index.js'
 import { getFilename } from './generateURL.js'
+import { throwValidation } from './errors/throwValidation.js'
 
-interface UploadArgs extends Args {
+interface UploadArgs extends CloudflareAdapterArgs {
   prefix?: string
 }
 
@@ -17,7 +18,7 @@ export const getHandleUpload = ({
   accountId,
   prefix = '',
 }: UploadArgs): HandleUpload => {
-  return async ({ data, file }) => {
+  return async ({ data, file, req }) => {
     const fileKey = getFilename({ filename: file.filename, prefix })
 
     const fileBufferOrStream: Buffer | stream.Readable = file.tempFilePath
@@ -41,14 +42,30 @@ export const getHandleUpload = ({
       }
     )
 
-    const res = await response.json()
+    let res: any
+    try {
+      res = await response.text()
+      res = JSON.parse(res)
+    } catch (error) {
+      const message = `Failed to upload image: Unexpected response (${response.status} ${response.statusText})`
 
-    if (response.status !== 200 || !res.success) {
-      if (res.errors) {
-        throw new Error(`Failed to upload image: ${res.errors[0].message}`)
+      throwValidation({ req, message })
+    }
+
+    if (response.status !== 200 || !res?.success) {
+      let message: string | undefined
+      if (Array.isArray(res?.errors) && res.errors.length > 0) {
+        message = res.errors[0]?.message || 'Unknown error'
+      } else if (typeof res?.error === 'string') {
+        message = res.error
+      } else if (Array.isArray(res?.messages) && res.messages.length > 0) {
+        message = res.messages[0]
       }
 
-      throw new Error('Failed to upload image')
+      throwValidation({
+        req,
+        message: `Failed to upload image: ${message || `Unexpected response (${response.status} ${response.statusText})`}`,
+      })
     }
 
     return data

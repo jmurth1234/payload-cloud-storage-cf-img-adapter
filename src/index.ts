@@ -7,13 +7,14 @@ import type {
 
 import type { Config, Plugin, UploadCollectionSlug } from 'payload'
 
+import { cloudStoragePlugin } from '@payloadcms/plugin-cloud-storage'
+
 import { getGenerateURL } from './generateURL.js'
 import { getHandleDelete } from './handleDelete.js'
 import { getHandleUpload } from './handleUpload.js'
 import { getHandler } from './staticHandler.js'
-import { cloudStoragePlugin } from '@payloadcms/plugin-cloud-storage'
 
-export type Args = {
+export type CloudflareAdapterArgs = {
   /**
    * The base URL to serve images from. Defaults to https://imagedelivery.net/
    */
@@ -31,11 +32,25 @@ export type Args = {
   accountHash: string
 
   /**
-   * The account ID for the Cloudflare account. This is used for API calls to 
+   * The account ID for the Cloudflare account. This is used for API calls to
    * upload and delete images.
    */
   accountId: string
 
+  /**
+   * How the adapter should respond when an upload error occurs.
+   * - `throw`: surface the error immediately
+   * - `record`: set the configured `errorField` in the document
+   */
+  onError?: 'throw' | 'record'
+
+  /**
+   * The field to store adapter errors when `onError` is set to `record`.
+   */
+  errorField?: string
+}
+
+export type CloudflareStorageArgs = CloudflareAdapterArgs & {
   /**
    * Whether the Cloudflare storage adapter is enabled.
    */
@@ -47,11 +62,13 @@ export type Args = {
   collections?: Partial<Record<UploadCollectionSlug, Omit<CollectionOptions, 'adapter'> | true>>
 }
 
-type CloudStoragePlugin = (storageArgs: Args) => Plugin
+export type Args = CloudflareStorageArgs
+
+type CloudStoragePlugin = (storageArgs: CloudflareStorageArgs) => Plugin
 
 
 export const cloudflareStorage: CloudStoragePlugin =
-  (args: Args) =>
+  (args: CloudflareStorageArgs) =>
   (incomingConfig: Config): Config => {
     if (args.enabled === false) {
       return incomingConfig
@@ -107,9 +124,11 @@ export const cloudflareAdapter =
     accountHash,
     accountId,
     baseUrl = 'https://imagedelivery.net',
-  }: Args): Adapter =>
+    onError,
+    errorField,
+  }: CloudflareAdapterArgs): Adapter =>
   ({ collection, prefix }): GeneratedAdapter => {
-    return {
+    const adapter: GeneratedAdapter & { cloudflareOptions?: Record<string, unknown> } = {
       name: 'cloudflare',
       generateURL: getGenerateURL({ apiKey, accountHash, baseUrl, accountId }),
       handleDelete: getHandleDelete({ apiKey, accountHash, accountId }),
@@ -117,8 +136,17 @@ export const cloudflareAdapter =
         prefix,
         apiKey,
         accountHash,
-        accountId
+        accountId,
       }),
       staticHandler: getHandler({ apiKey, accountHash, collection, baseUrl, accountId }),
     }
+
+    adapter.cloudflareOptions = {
+      onError,
+      errorField,
+    }
+
+    return adapter
   }
+
+export { cloudStorageStrict } from './strictPlugin.js'

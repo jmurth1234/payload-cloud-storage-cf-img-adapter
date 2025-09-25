@@ -28,7 +28,7 @@ export default async function HomePage() {
           <Image
             alt="Payload Logo"
             height={300}
-            src={image.url}
+            src={image?.url || ''}
             width={300}
           />
         {!user && <h1>Welcome to your new project.</h1>}
