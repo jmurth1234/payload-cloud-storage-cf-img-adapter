@@ -7,7 +7,9 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
-    "dist"
+    "dist",
+    "src",
+    "tsconfig.json"
   ],
   "type": "module",
   "keywords": [
@@ -26,7 +28,8 @@
     "lint": "eslint src",
     "lint:fix": "eslint --fix --ext .ts,.tsx src",
     "clean": "rm -rf dist",
-    "prepublishOnly": "yarn clean && yarn build && yarn test"
+    "postinstall": "pnpm run build",
+    "prepublishOnly": "pnpm clean && pnpm build && pnpm test"
   },
   "author": "jmurth1234",
   "license": "MIT",

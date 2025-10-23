@@ -5,12 +5,25 @@ import FormData from 'form-data'
 import fetch from 'node-fetch'
 
 import type { HandleUpload } from '@payloadcms/plugin-cloud-storage/types'
+import { Args } from './index.js'
+import { getFilename, addTimestampToFilename } from './generateURL.js'
 import type { CloudflareAdapterArgs } from './index.js'
-import { getFilename } from './generateURL.js'
 import { throwValidation } from './errors/throwValidation.js'
 
 interface UploadArgs extends CloudflareAdapterArgs {
   prefix?: string
+}
+
+interface CloudflareUploadResponse {
+  success: boolean
+  errors?: Array<{ message: string }>
+  result?: {
+    id: string
+    filename: string
+    uploaded: string
+    requireSignedURLs: boolean
+    variants: string[]
+  }
 }
 
 export const getHandleUpload = ({
@@ -19,7 +32,10 @@ export const getHandleUpload = ({
   prefix = '',
 }: UploadArgs): HandleUpload => {
   return async ({ data, file, req }) => {
-    const fileKey = getFilename({ filename: file.filename, prefix })
+    // Add timestamp to filename before extension
+    const uniqueFilename = addTimestampToFilename(file.filename)
+    
+    const fileKey = getFilename({ filename: uniqueFilename, prefix })
 
     const fileBufferOrStream: Buffer | stream.Readable = file.tempFilePath
       ? fs.createReadStream(file.tempFilePath)
@@ -45,7 +61,7 @@ export const getHandleUpload = ({
     let res: any
     try {
       res = await response.text()
-      res = JSON.parse(res)
+      res = JSON.parse(res) as CloudflareUploadResponse
     } catch (error) {
       const message = `Failed to upload image: Unexpected response (${response.status} ${response.statusText})`
 
@@ -68,6 +84,7 @@ export const getHandleUpload = ({
       })
     }
 
-    return data
+    // Update the filename in data to match the uploaded filename
+    data.filename = uniqueFilename
   }
 }
