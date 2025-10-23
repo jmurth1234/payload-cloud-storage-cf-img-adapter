@@ -7,8 +7,10 @@ import fetch from 'node-fetch'
 import type { HandleUpload } from '@payloadcms/plugin-cloud-storage/types'
 import { Args } from './index.js'
 import { getFilename, addTimestampToFilename } from './generateURL.js'
+import type { CloudflareAdapterArgs } from './index.js'
+import { throwValidation } from './errors/throwValidation.js'
 
-interface UploadArgs extends Args {
+interface UploadArgs extends CloudflareAdapterArgs {
   prefix?: string
 }
 
@@ -29,7 +31,7 @@ export const getHandleUpload = ({
   accountId,
   prefix = '',
 }: UploadArgs): HandleUpload => {
-  return async ({ data, file }) => {
+  return async ({ data, file, req }) => {
     // Add timestamp to filename before extension
     const uniqueFilename = addTimestampToFilename(file.filename)
     
@@ -56,14 +58,30 @@ export const getHandleUpload = ({
       }
     )
 
-    const res = await response.json() as CloudflareUploadResponse
+    let res: any
+    try {
+      res = await response.text()
+      res = JSON.parse(res) as CloudflareUploadResponse
+    } catch (error) {
+      const message = `Failed to upload image: Unexpected response (${response.status} ${response.statusText})`
 
-    if (response.status !== 200 || !res.success) {
-      if (res.errors) {
-        throw new Error(`Failed to upload image: ${res.errors[0].message}`)
+      throwValidation({ req, message })
+    }
+
+    if (response.status !== 200 || !res?.success) {
+      let message: string | undefined
+      if (Array.isArray(res?.errors) && res.errors.length > 0) {
+        message = res.errors[0]?.message || 'Unknown error'
+      } else if (typeof res?.error === 'string') {
+        message = res.error
+      } else if (Array.isArray(res?.messages) && res.messages.length > 0) {
+        message = res.messages[0]
       }
 
-      throw new Error('Failed to upload image')
+      throwValidation({
+        req,
+        message: `Failed to upload image: ${message || `Unexpected response (${response.status} ${response.statusText})`}`,
+      })
     }
 
     // Update the filename in data to match the uploaded filename

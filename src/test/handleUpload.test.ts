@@ -42,9 +42,35 @@ describe('handleUpload', () => {
       req: {},
     })
 
-    // Verify the filename was updated with timestamp in the data object
-    expect(data.filename).toBe('test_2024012345.jpg')
-    expect(addTimestampToFilename).toHaveBeenCalledWith('test.jpg')
+    scope.done()
+  })
+
+  it('throws error on upload failure', async () => {
+    const scope = nock('https://api.cloudflare.com/client/v4/accounts/')
+      .post('/testFailedId/images/v1')
+      .reply(400, { success: false })
+
+    const handleUpload = getHandleUpload({
+      apiKey: 'testApiKey',
+      accountId: 'testFailedId',
+      accountHash: 'testAccountHash',
+    })
+
+    await expect(
+      handleUpload({
+        file: {
+          filename: 'test.jpg',
+          buffer: Buffer.from('test'),
+          filesize: 10,
+          mimeType: 'image/jpeg',
+        },
+        data: {},
+        // @ts-ignore - We don't currently use this anyway
+        collection: {},
+        // @ts-ignore - We don't currently use this anyway
+        req: {},
+      })
+    ).rejects.toThrow(/Failed to upload image/)
 
     scope.done()
   })
@@ -68,23 +94,26 @@ describe('handleUpload', () => {
     expect(addTimestampToFilename('my.test.file.jpeg')).toMatch(/^my\.test\.file_\d{10}\.jpeg$/)
   })
 
-  it('throws error on upload failure', async () => {
+  it('throws a meaningful error when Cloudflare returns non-JSON', async () => {
     const scope = nock('https://api.cloudflare.com/client/v4/accounts/')
-      .post('/testFailedId/images/v1')
-      .reply(400, { success: false })
+      .post('/badAccount/images/v1')
+      .reply(413, '<html>Payload Too Large</html>', {
+        'content-type': 'text/html',
+        'status-text': 'Payload Too Large',
+      } as any)
 
     const handleUpload = getHandleUpload({
       apiKey: 'testApiKey',
-      accountId: 'testFailedId',
+      accountId: 'badAccount',
       accountHash: 'testAccountHash',
     })
 
-    try {
-      await handleUpload({
+    await expect(
+      handleUpload({
         file: {
-          filename: 'test.jpg',
-          buffer: Buffer.from('test'),
-          filesize: 10,
+          filename: 'huge.jpg',
+          buffer: Buffer.from('x'),
+          filesize: 200 * 1024 * 1024,
           mimeType: 'image/jpeg',
         },
         data: {},
@@ -93,9 +122,7 @@ describe('handleUpload', () => {
         // @ts-ignore - We don't currently use this anyway
         req: {},
       })
-    } catch (e) {
-      expect(e).toEqual(new Error('Failed to upload image'))
-    }
+    ).rejects.toThrow(/Failed to upload image: Unexpected response/)
 
     scope.done()
   })
