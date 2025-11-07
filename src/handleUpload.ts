@@ -6,13 +6,25 @@ import fetch from 'node-fetch'
 
 import type { HandleUpload } from '@payloadcms/plugin-cloud-storage/dist/types'
 import { Args } from '.'
-import { getFilename } from './generateURL'
+import { addTimestampToFilename, getFilename } from './generateURL'
 import { throwValidation } from './errors/throwValidation'
-
-// Use shared throwValidation helper
 
 interface UploadArgs extends Args {
   prefix?: string
+}
+
+interface CloudflareUploadResponse {
+  success: boolean
+  errors?: Array<{ message: string }>
+  result?: {
+    id: string
+    filename: string
+    uploaded: string
+    requireSignedURLs: boolean
+    variants: string[]
+  }
+  messages?: string[]
+  error?: string
 }
 
 export const getHandleUpload = ({
@@ -20,8 +32,9 @@ export const getHandleUpload = ({
   accountId,
   prefix = '',
 }: UploadArgs): HandleUpload => {
-  return async ({ data, file }) => {
-    const fileKey = getFilename({ filename: file.filename, prefix })
+  return async ({ data, file, req }) => {
+    const uniqueFilename = addTimestampToFilename(file.filename)
+    const fileKey = getFilename({ filename: uniqueFilename, prefix })
 
     const fileBufferOrStream: Buffer | stream.Readable = file.tempFilePath
       ? fs.createReadStream(file.tempFilePath)
@@ -44,28 +57,34 @@ export const getHandleUpload = ({
       }
     )
 
-    let res: any
+    let res: CloudflareUploadResponse | undefined
     try {
-      res = await response.json()
+      const responseText = await response.text()
+      res = JSON.parse(responseText) as CloudflareUploadResponse
     } catch (e) {
       const message = `Failed to upload image: Unexpected response (${response.status} ${response.statusText})`
-      throwValidation({ message })
+      throwValidation({ req, message })
     }
 
     if (response.status !== 200 || !res?.success) {
       let message: string | undefined
-      if (res?.errors && Array.isArray(res.errors) && res.errors.length > 0) {
+      if (Array.isArray(res?.errors) && res.errors.length > 0) {
         message = res.errors[0]?.message || 'Unknown error'
       } else if (typeof res?.error === 'string') {
         message = res.error
-      } else if (typeof res?.messages?.[0] === 'string') {
+      } else if (Array.isArray(res?.messages) && res.messages.length > 0) {
         message = res.messages[0]
-      } else {
-        message = `Unexpected response (${response.status} ${response.statusText})`
       }
 
-      throwValidation({ message: `Failed to upload image: ${message}` })
+      throwValidation({
+        req,
+        message: `Failed to upload image: ${
+          message || `Unexpected response (${response.status} ${response.statusText})`
+        }`,
+      })
     }
+
+    data.filename = uniqueFilename
 
     return data
   }
