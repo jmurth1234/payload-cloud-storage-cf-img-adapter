@@ -5,7 +5,6 @@ import FormData from 'form-data'
 import fetch from 'node-fetch'
 
 import type { HandleUpload } from '@payloadcms/plugin-cloud-storage/types'
-import { Args } from './index.js'
 import { getFilename, addTimestampToFilename } from './generateURL.js'
 import type { CloudflareAdapterArgs } from './index.js'
 import { throwValidation } from './errors/throwValidation.js'
@@ -86,5 +85,7 @@ export const getHandleUpload = ({
 
     // Update the filename in data to match the uploaded filename
     data.filename = uniqueFilename
+
+    return data
   }
 }

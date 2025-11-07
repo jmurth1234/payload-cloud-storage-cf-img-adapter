@@ -1,18 +1,20 @@
-import FormData from 'form-data'
 import { getHandleUpload } from '../handleUpload.js'
-import { addTimestampToFilename } from '../generateURL.js'
 import nock from 'nock'
 
 // Mock the timestamp function to make tests deterministic
 jest.mock('../generateURL.js', () => ({
   ...jest.requireActual('../generateURL.js'),
-  addTimestampToFilename: jest.fn((filename: string) => {
-    // Return a predictable filename for testing
-    const parts = filename.split('.')
-    const extension = parts.pop()
-    const baseName = parts.join('.')
-    return `${baseName}_2024012345.${extension}`
-  }),
+  generateTimestamp: jest.fn(() => '240101010203456'),
+}))
+
+// Mock Payload's ValidationError to avoid loading the full package (ESM)
+jest.mock('payload', () => ({
+  ValidationError: class ValidationError extends Error {
+    constructor({ errors }: { errors?: Array<{ message?: string }> }) {
+      super(errors?.[0]?.message || 'Validation Error')
+      this.errors = errors
+    }
+  },
 }))
 
 describe('handleUpload', () => {
@@ -43,6 +45,8 @@ describe('handleUpload', () => {
     })
 
     scope.done()
+
+    expect(data.filename).toMatch(/^test_\d{19}\.jpg$/)
   })
 
   it('throws error on upload failure', async () => {
@@ -76,22 +80,26 @@ describe('handleUpload', () => {
   })
 
   it('adds timestamp to filename correctly', () => {
-    // Test the actual timestamp function (unmocked)
-    jest.unmock('../generateURL.js')
-    const { addTimestampToFilename, generateTimestamp } = jest.requireActual('../generateURL.js')
+    const { addTimestampToFilename } = jest.requireActual('../generateURL.js')
     
     const originalFilename = 'example.jpg'
     const timestampedFilename = addTimestampToFilename(originalFilename)
     
-    // Should have the format: example_YYYYMMDDHH.jpg
-    expect(timestampedFilename).toMatch(/^example_\d{10}\.jpg$/)
+    // Should have the format: example_YYMMDDHHMMSSmmmXXXXXX.jpg
+    expect(timestampedFilename).toMatch(/^example_\d{19}\.jpg$/)
     
     // Test with different extensions
-    expect(addTimestampToFilename('test.png')).toMatch(/^test_\d{10}\.png$/)
-    expect(addTimestampToFilename('image.gif')).toMatch(/^image_\d{10}\.gif$/)
+    expect(addTimestampToFilename('test.png')).toMatch(/^test_\d{19}\.png$/)
+    expect(addTimestampToFilename('image.gif')).toMatch(/^image_\d{19}\.gif$/)
     
     // Test with multiple dots in filename
-    expect(addTimestampToFilename('my.test.file.jpeg')).toMatch(/^my\.test\.file_\d{10}\.jpeg$/)
+    expect(addTimestampToFilename('my.test.file.jpeg')).toMatch(/^my\.test\.file_\d{19}\.jpeg$/)
+
+    // Handles filenames without extensions
+    expect(addTimestampToFilename('avatar')).toMatch(/^avatar_\d{19}$/)
+
+    // Handles dotfiles
+    expect(addTimestampToFilename('.env')).toMatch(/^\..+_\d{19}$/)
   })
 
   it('throws a meaningful error when Cloudflare returns non-JSON', async () => {
