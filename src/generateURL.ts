@@ -9,16 +9,25 @@ export const generateTimestamp = (): string => {
   const mm = String(now.getMonth() + 1).padStart(2, '0')
   const dd = String(now.getDate()).padStart(2, '0')
   const hh = String(now.getHours()).padStart(2, '0')
+  const mi = String(now.getMinutes()).padStart(2, '0')
   const ss = String(now.getSeconds()).padStart(2, '0')
-  return `${yy}${mm}${dd}${hh}${ss}`
+  const ms = String(now.getMilliseconds()).padStart(3, '0')
+  return `${yy}${mm}${dd}${hh}${mi}${ss}${ms}`
 }
 
 export const addTimestampToFilename = (filename: string): string => {
-  const timestamp = generateTimestamp()
-  const filenameParts = filename.split('.')
-  const extension = filenameParts.pop()
-  const baseName = filenameParts.join('.')
-  return `${baseName}_${timestamp}.${extension}`
+  const randomDigits = Math.floor(Math.random() * 10 ** 4)
+    .toString()
+    .padStart(4, '0')
+  const uniqueSuffix = `${generateTimestamp()}${randomDigits}`
+  const parsed = path.posix.parse(filename)
+  const baseName = parsed.name || parsed.base
+  const extension = parsed.ext ?? ''
+  const timestampedBase = `${baseName}_${uniqueSuffix}${extension}`
+
+  return parsed.dir
+    ? path.posix.join(parsed.dir, timestampedBase)
+    : timestampedBase
 }
 
 export const getGenerateURL =
