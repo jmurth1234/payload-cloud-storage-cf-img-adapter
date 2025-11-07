@@ -10,6 +10,7 @@ jest.mock('../generateURL.js', () => ({
 // Mock Payload's ValidationError to avoid loading the full package (ESM)
 jest.mock('payload', () => ({
   ValidationError: class ValidationError extends Error {
+    errors?: Array<{ message?: string }>
     constructor({ errors }: { errors?: Array<{ message?: string }> }) {
       super(errors?.[0]?.message || 'Validation Error')
       this.errors = errors
