@@ -88,12 +88,13 @@ export const getHandleUpload = ({
     // First check if this is a crop to handle edge case where crops are uploaded before main file
     let isCrop = false
     if (data.sizes) {
-      Object.keys(data.sizes).forEach((key) => {
+      for (const key of Object.keys(data.sizes)) {
         if (data.sizes[key]?.filename === file.filename) {
           data.sizes[key].filename = uniqueFilename
           isCrop = true
+          break
         }
-      })
+      }
     }
 
     // If not a crop, update main filename
