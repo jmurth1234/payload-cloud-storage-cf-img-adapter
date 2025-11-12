@@ -195,4 +195,106 @@ describe('handleUpload', () => {
     expect(data.filename).not.toBe('test.jpg')
     expect(data.sizes.thumbnail.filename).not.toBe('test-thumbnail.jpg')
   })
+
+  it('correctly handles multiple crops with unique timestamps', async () => {
+    const scope = nock('https://api.cloudflare.com/client/v4/accounts/')
+      .post('/testAccountId/images/v1')
+      .times(4) // Main + 3 crops
+      .reply(200, { success: true })
+
+    const handleUpload = getHandleUpload({
+      apiKey: 'testApiKey',
+      accountId: 'testAccountId',
+      accountHash: 'testAccountHash',
+    })
+
+    const data: any = {
+      filename: 'photo.png',
+      sizes: {
+        thumbnail: {
+          filename: 'photo-thumbnail.png',
+          width: 150,
+          height: 150,
+        },
+        medium: {
+          filename: 'photo-medium.png',
+          width: 800,
+          height: 600,
+        },
+        large: {
+          filename: 'photo-large.png',
+          width: 1920,
+          height: 1080,
+        },
+      },
+    }
+
+    // Upload main file
+    await handleUpload({
+      file: {
+        filename: 'photo.png',
+        buffer: Buffer.from('main'),
+        filesize: 100,
+        mimeType: 'image/png',
+      },
+      data,
+      // @ts-ignore
+      collection: {},
+      req: {},
+    })
+
+    // Upload each crop
+    await handleUpload({
+      file: {
+        filename: 'photo-thumbnail.png',
+        buffer: Buffer.from('thumb'),
+        filesize: 10,
+        mimeType: 'image/png',
+      },
+      data,
+      // @ts-ignore
+      collection: {},
+      req: {},
+    })
+
+    await handleUpload({
+      file: {
+        filename: 'photo-medium.png',
+        buffer: Buffer.from('medium'),
+        filesize: 50,
+        mimeType: 'image/png',
+      },
+      data,
+      // @ts-ignore
+      collection: {},
+      req: {},
+    })
+
+    await handleUpload({
+      file: {
+        filename: 'photo-large.png',
+        buffer: Buffer.from('large'),
+        filesize: 80,
+        mimeType: 'image/png',
+      },
+      data,
+      // @ts-ignore
+      collection: {},
+      req: {},
+    })
+
+    scope.done()
+
+    // All filenames should have unique timestamps
+    expect(data.filename).toMatch(/^photo_\d{19}\.png$/)
+    expect(data.sizes.thumbnail.filename).toMatch(/^photo-thumbnail_\d{19}\.png$/)
+    expect(data.sizes.medium.filename).toMatch(/^photo-medium_\d{19}\.png$/)
+    expect(data.sizes.large.filename).toMatch(/^photo-large_\d{19}\.png$/)
+
+    // All should be different from originals
+    expect(data.filename).not.toBe('photo.png')
+    expect(data.sizes.thumbnail.filename).not.toBe('photo-thumbnail.png')
+    expect(data.sizes.medium.filename).not.toBe('photo-medium.png')
+    expect(data.sizes.large.filename).not.toBe('photo-large.png')
+  })
 })
