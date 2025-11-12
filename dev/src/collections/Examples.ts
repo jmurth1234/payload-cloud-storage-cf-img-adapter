@@ -16,6 +16,30 @@ const Examples: CollectionConfig = {
         height: 300,
         position: 'centre',
       },
+      {
+        name: 'landscape',
+        width: 800,
+        height: 450,
+        position: 'centre',
+      },
+      {
+        name: 'landscape2x',
+        width: 1920,
+        height: 1280,
+        position: 'centre',
+      },
+      {
+        name: 'portrait',
+        width: 600,
+        height: 900,
+        position: 'centre',
+      },
+      {
+        name: 'square',
+        width: 600,
+        height: 600,
+        position: 'centre',
+      },
     ],
   },
   fields: [
