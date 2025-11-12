@@ -297,4 +297,69 @@ describe('handleUpload', () => {
     expect(data.sizes.medium.filename).not.toBe('photo-medium.png')
     expect(data.sizes.large.filename).not.toBe('photo-large.png')
   })
+
+  it('correctly handles crop uploaded before main file', async () => {
+    const scope = nock('https://api.cloudflare.com/client/v4/accounts/')
+      .post('/testAccountId/images/v1')
+      .times(2)
+      .reply(200, { success: true })
+
+    const handleUpload = getHandleUpload({
+      apiKey: 'testApiKey',
+      accountId: 'testAccountId',
+      accountHash: 'testAccountHash',
+    })
+
+    // Data object with no main filename set yet, but has crop sizes defined
+    const data: any = {
+      sizes: {
+        thumbnail: {
+          filename: 'image-thumbnail.jpg',
+          width: 150,
+          height: 150,
+        },
+      },
+    }
+
+    // Upload crop BEFORE main file
+    await handleUpload({
+      file: {
+        filename: 'image-thumbnail.jpg',
+        buffer: Buffer.from('thumb'),
+        filesize: 5,
+        mimeType: 'image/jpeg',
+      },
+      data,
+      // @ts-ignore
+      collection: {},
+      req: {},
+    })
+
+    // Upload main file after
+    await handleUpload({
+      file: {
+        filename: 'image.jpg',
+        buffer: Buffer.from('main'),
+        filesize: 100,
+        mimeType: 'image/jpeg',
+      },
+      data,
+      // @ts-ignore
+      collection: {},
+      req: {},
+    })
+
+    scope.done()
+
+    // Main filename should be set correctly
+    expect(data.filename).toMatch(/^image_\d{19}\.jpg$/)
+    expect(data.filename).not.toBe('image-thumbnail.jpg') // Should NOT be the crop filename
+
+    // Crop filename should be updated correctly
+    expect(data.sizes.thumbnail.filename).toMatch(/^image-thumbnail_\d{19}\.jpg$/)
+    expect(data.sizes.thumbnail.filename).not.toBe('image-thumbnail.jpg')
+
+    // They should be different
+    expect(data.filename).not.toBe(data.sizes.thumbnail.filename)
+  })
 })
