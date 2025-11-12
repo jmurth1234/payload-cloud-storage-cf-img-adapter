@@ -131,4 +131,68 @@ describe('handleUpload', () => {
 
     scope.done()
   })
+
+  it('correctly updates crop filenames with unique timestamps', async () => {
+    const scope = nock('https://api.cloudflare.com/client/v4/accounts/')
+      .post('/testAccountId/images/v1')
+      .times(2)
+      .reply(200, { success: true })
+
+    const handleUpload = getHandleUpload({
+      apiKey: 'testApiKey',
+      accountId: 'testAccountId',
+      accountHash: 'testAccountHash',
+    })
+
+    const data: any = {
+      filename: 'test.jpg',
+      sizes: {
+        thumbnail: {
+          filename: 'test-thumbnail.jpg',
+          width: 150,
+          height: 150,
+        },
+      },
+    }
+
+    // Upload main file
+    await handleUpload({
+      file: {
+        filename: 'test.jpg',
+        buffer: Buffer.from('test'),
+        filesize: 10,
+        mimeType: 'image/jpeg',
+      },
+      data,
+      // @ts-ignore - We don't currently use this anyway
+      collection: {},
+      req: {},
+    })
+
+    // Upload crop
+    await handleUpload({
+      file: {
+        filename: 'test-thumbnail.jpg',
+        buffer: Buffer.from('test'),
+        filesize: 5,
+        mimeType: 'image/jpeg',
+      },
+      data,
+      // @ts-ignore - We don't currently use this anyway
+      collection: {},
+      req: {},
+    })
+
+    scope.done()
+
+    // Main filename should have timestamp
+    expect(data.filename).toMatch(/^test_\d{19}\.jpg$/)
+
+    // Crop filename should also have timestamp
+    expect(data.sizes.thumbnail.filename).toMatch(/^test-thumbnail_\d{19}\.jpg$/)
+
+    // Main and crop should have different timestamps
+    expect(data.filename).not.toBe('test.jpg')
+    expect(data.sizes.thumbnail.filename).not.toBe('test-thumbnail.jpg')
+  })
 })
