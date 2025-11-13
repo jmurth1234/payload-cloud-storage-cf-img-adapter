@@ -84,7 +84,23 @@ export const getHandleUpload = ({
       })
     }
 
-    data.filename = uniqueFilename
+    // Check if this is a crop or the main file
+    // First check if this is a crop to handle edge case where crops are uploaded before main file
+    let isCrop = false
+    if (data.sizes) {
+      for (const key of Object.keys(data.sizes)) {
+        if (data.sizes[key]?.filename === file.filename) {
+          data.sizes[key].filename = uniqueFilename
+          isCrop = true
+          break
+        }
+      }
+    }
+
+    // If not a crop, update main filename
+    if (!isCrop) {
+      data.filename = uniqueFilename
+    }
 
     return data
   }

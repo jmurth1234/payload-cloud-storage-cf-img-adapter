@@ -131,4 +131,235 @@ describe('handleUpload', () => {
 
     scope.done()
   })
+
+  it('correctly updates crop filenames with unique timestamps', async () => {
+    const scope = nock('https://api.cloudflare.com/client/v4/accounts/')
+      .post('/testAccountId/images/v1')
+      .times(2)
+      .reply(200, { success: true })
+
+    const handleUpload = getHandleUpload({
+      apiKey: 'testApiKey',
+      accountId: 'testAccountId',
+      accountHash: 'testAccountHash',
+    })
+
+    const data: any = {
+      filename: 'test.jpg',
+      sizes: {
+        thumbnail: {
+          filename: 'test-thumbnail.jpg',
+          width: 150,
+          height: 150,
+        },
+      },
+    }
+
+    // Upload main file
+    await handleUpload({
+      file: {
+        filename: 'test.jpg',
+        buffer: Buffer.from('test'),
+        filesize: 10,
+        mimeType: 'image/jpeg',
+      },
+      data,
+      // @ts-ignore - We don't currently use this anyway
+      collection: {},
+      req: {},
+    })
+
+    // Upload crop
+    await handleUpload({
+      file: {
+        filename: 'test-thumbnail.jpg',
+        buffer: Buffer.from('test'),
+        filesize: 5,
+        mimeType: 'image/jpeg',
+      },
+      data,
+      // @ts-ignore - We don't currently use this anyway
+      collection: {},
+      req: {},
+    })
+
+    scope.done()
+
+    // Main filename should have timestamp
+    expect(data.filename).toMatch(/^test_\d{19}\.jpg$/)
+
+    // Crop filename should also have timestamp
+    expect(data.sizes.thumbnail.filename).toMatch(/^test-thumbnail_\d{19}\.jpg$/)
+
+    // Main and crop should have different timestamps
+    expect(data.filename).not.toBe('test.jpg')
+    expect(data.sizes.thumbnail.filename).not.toBe('test-thumbnail.jpg')
+  })
+
+  it('correctly handles multiple crops with unique timestamps', async () => {
+    const scope = nock('https://api.cloudflare.com/client/v4/accounts/')
+      .post('/testAccountId/images/v1')
+      .times(4) // Main + 3 crops
+      .reply(200, { success: true })
+
+    const handleUpload = getHandleUpload({
+      apiKey: 'testApiKey',
+      accountId: 'testAccountId',
+      accountHash: 'testAccountHash',
+    })
+
+    const data: any = {
+      filename: 'photo.png',
+      sizes: {
+        thumbnail: {
+          filename: 'photo-thumbnail.png',
+          width: 150,
+          height: 150,
+        },
+        medium: {
+          filename: 'photo-medium.png',
+          width: 800,
+          height: 600,
+        },
+        large: {
+          filename: 'photo-large.png',
+          width: 1920,
+          height: 1080,
+        },
+      },
+    }
+
+    // Upload main file
+    await handleUpload({
+      file: {
+        filename: 'photo.png',
+        buffer: Buffer.from('main'),
+        filesize: 100,
+        mimeType: 'image/png',
+      },
+      data,
+      // @ts-ignore
+      collection: {},
+      req: {},
+    })
+
+    // Upload each crop
+    await handleUpload({
+      file: {
+        filename: 'photo-thumbnail.png',
+        buffer: Buffer.from('thumb'),
+        filesize: 10,
+        mimeType: 'image/png',
+      },
+      data,
+      // @ts-ignore
+      collection: {},
+      req: {},
+    })
+
+    await handleUpload({
+      file: {
+        filename: 'photo-medium.png',
+        buffer: Buffer.from('medium'),
+        filesize: 50,
+        mimeType: 'image/png',
+      },
+      data,
+      // @ts-ignore
+      collection: {},
+      req: {},
+    })
+
+    await handleUpload({
+      file: {
+        filename: 'photo-large.png',
+        buffer: Buffer.from('large'),
+        filesize: 80,
+        mimeType: 'image/png',
+      },
+      data,
+      // @ts-ignore
+      collection: {},
+      req: {},
+    })
+
+    scope.done()
+
+    // All filenames should have unique timestamps
+    expect(data.filename).toMatch(/^photo_\d{19}\.png$/)
+    expect(data.sizes.thumbnail.filename).toMatch(/^photo-thumbnail_\d{19}\.png$/)
+    expect(data.sizes.medium.filename).toMatch(/^photo-medium_\d{19}\.png$/)
+    expect(data.sizes.large.filename).toMatch(/^photo-large_\d{19}\.png$/)
+
+    // All should be different from originals
+    expect(data.filename).not.toBe('photo.png')
+    expect(data.sizes.thumbnail.filename).not.toBe('photo-thumbnail.png')
+    expect(data.sizes.medium.filename).not.toBe('photo-medium.png')
+    expect(data.sizes.large.filename).not.toBe('photo-large.png')
+  })
+
+  it('correctly handles crop uploaded before main file', async () => {
+    const scope = nock('https://api.cloudflare.com/client/v4/accounts/')
+      .post('/testAccountId/images/v1')
+      .times(2)
+      .reply(200, { success: true })
+
+    const handleUpload = getHandleUpload({
+      apiKey: 'testApiKey',
+      accountId: 'testAccountId',
+      accountHash: 'testAccountHash',
+    })
+
+    // Data object with no main filename set yet, but has crop sizes defined
+    const data: any = {
+      sizes: {
+        thumbnail: {
+          filename: 'image-thumbnail.jpg',
+          width: 150,
+          height: 150,
+        },
+      },
+    }
+
+    // Upload crop BEFORE main file
+    await handleUpload({
+      file: {
+        filename: 'image-thumbnail.jpg',
+        buffer: Buffer.from('thumb'),
+        filesize: 5,
+        mimeType: 'image/jpeg',
+      },
+      data,
+      // @ts-ignore
+      collection: {},
+      req: {},
+    })
+
+    // Upload main file after
+    await handleUpload({
+      file: {
+        filename: 'image.jpg',
+        buffer: Buffer.from('main'),
+        filesize: 100,
+        mimeType: 'image/jpeg',
+      },
+      data,
+      // @ts-ignore
+      collection: {},
+      req: {},
+    })
+
+    scope.done()
+
+    // Main filename should be set correctly
+    expect(data.filename).toMatch(/^image_\d{19}\.jpg$/)
+    expect(data.filename).not.toBe('image-thumbnail.jpg') // Should NOT be the crop filename
+
+    // Crop filename should be updated correctly
+    expect(data.sizes.thumbnail.filename).toMatch(/^image-thumbnail_\d{19}\.jpg$/)
+    expect(data.sizes.thumbnail.filename).not.toBe('image-thumbnail.jpg')
+
+    // They should be different
+    expect(data.filename).not.toBe(data.sizes.thumbnail.filename)
+  })
 })
