@@ -34,7 +34,9 @@ export const getGenerateURL =
   ({ accountHash, baseUrl }: Args): GenerateURL =>
   ({ filename, prefix = '' }) => {
     // TODO: Add support for non flexible variants. 
-    return `${baseUrl}/${accountHash}/${getFilename({ filename, prefix })}/format=auto`
+    const fullPath = getFilename({ filename, prefix })
+    const encodedPath = encodeURIComponent(fullPath)
+    return `${baseUrl}/${accountHash}/${encodedPath}/format=auto`
   }
 
 export const getFilename = ({
